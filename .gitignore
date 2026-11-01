@@ -1,0 +1,32 @@
+# Build-Ausgaben und generierte Dokumente
+/target/
+/output/
+/dist/
+/demo.pdf
+/notfallmappe-*.pdf
+
+# Persönliche Datenbanken einschließlich SQLite-Begleitdateien
+*.sqlite
+*.sqlite-*
+*.sqlite3
+*.sqlite3-*
+*.db
+*.db-*
+
+# Lokale Konfiguration und Zugangsdaten
+.env
+.env.*
+!.env.example
+/.agents/
+/.codex/
+/.aws/
+
+# Editor- und Betriebssystemdateien
+/.idea/
+/.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+Desktop.ini

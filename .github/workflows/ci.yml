@@ -1,0 +1,48 @@
+name: Linux und Windows
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-test:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            binary: notfallmappe
+          - os: windows-latest
+            binary: notfallmappe.exe
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Rust-Toolchain
+        run: rustup update stable --no-self-update
+      - name: Rust-Komponenten
+        run: rustup component add rustfmt clippy --toolchain stable
+      - name: Formatierung
+        run: cargo +stable fmt --check
+      - name: Codeprüfung
+        run: cargo +stable clippy --locked --all-targets -- -D warnings
+      - name: Tests (Datenbank, TUI, PDF und Sprungmarken)
+        run: cargo +stable test --locked
+      - name: Release-Build
+        run: cargo +stable build --release --locked
+      - name: PDF-Export mit Beispieldaten
+        run: cargo +stable run --release --locked -- --demo-pdf demo.pdf
+      - name: Anwendung bereitstellen
+        uses: actions/upload-artifact@v4
+        with:
+          name: notfallmappe-${{ matrix.os }}
+          path: |
+            target/release/${{ matrix.binary }}
+            assets/FONT-LICENSE.txt
+            README.md
+            LICENSE
+          if-no-files-found: error

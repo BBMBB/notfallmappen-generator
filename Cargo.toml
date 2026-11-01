@@ -1,0 +1,22 @@
+[package]
+name = "notfallmappe"
+version = "0.1.0-alpha.1"
+edition = "2024"
+license = "MIT"
+description = "Lokale Rust-TUI für eine persönliche Notfallmappe mit SQLite und A4-PDF-Export."
+repository = "https://github.com/BBMBB/notfallmappen-generator"
+readme = "README.md"
+
+[dependencies]
+anyhow = "1"
+chrono = "0.4"
+crossterm = "0.28"
+lopdf = "0.26"
+ratatui = "0.29"
+rusqlite = { version = "0.37", features = ["bundled"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+genpdf = "0.2"
+
+[dev-dependencies]
+tempfile = "3"

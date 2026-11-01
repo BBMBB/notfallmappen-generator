@@ -1,0 +1,98 @@
+name: Alpha-Release
+
+on:
+  push:
+    tags:
+      - 'v*-alpha.*'
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-22.04
+            target: x86_64-unknown-linux-gnu
+            binary: notfallmappe
+            platform: linux-x86_64
+          - os: windows-2022
+            target: x86_64-pc-windows-msvc
+            binary: notfallmappe.exe
+            platform: windows-x86_64
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Rust-Toolchain
+        run: rustup update stable --no-self-update
+      - name: Rust-Komponenten
+        run: rustup component add rustfmt clippy --toolchain stable
+      - name: Zielplattform
+        run: rustup target add ${{ matrix.target }} --toolchain stable
+      - name: Formatierung
+        run: cargo +stable fmt --check
+      - name: Codeprüfung
+        run: cargo +stable clippy --locked --target ${{ matrix.target }} --all-targets -- -D warnings
+      - name: Tests
+        run: cargo +stable test --locked --target ${{ matrix.target }}
+      - name: Release-Build
+        run: cargo +stable build --release --locked --target ${{ matrix.target }}
+      - name: PDF-Export prüfen
+        run: cargo +stable run --release --locked --target ${{ matrix.target }} -- --demo-pdf demo.pdf
+      - name: Paket vorbereiten
+        shell: bash
+        env:
+          BINARY: ${{ matrix.binary }}
+          TARGET: ${{ matrix.target }}
+          PLATFORM: ${{ matrix.platform }}
+        run: |
+          PACKAGE="notfallmappe-${GITHUB_REF_NAME}-${PLATFORM}"
+          mkdir -p "package/${PACKAGE}/assets" "package/${PACKAGE}/docs/examples" dist
+          cp "target/${TARGET}/release/${BINARY}" "package/${PACKAGE}/"
+          cp LICENSE README.md "package/${PACKAGE}/"
+          cp assets/FONT-LICENSE.txt "package/${PACKAGE}/assets/"
+          cp docs/examples/Example_TUI.png docs/examples/Example_Notfallmappe.pdf "package/${PACKAGE}/docs/examples/"
+      - name: Linux-Archiv
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          PACKAGE="notfallmappe-${GITHUB_REF_NAME}-linux-x86_64"
+          tar -czf "dist/${PACKAGE}.tar.gz" -C package "${PACKAGE}"
+      - name: Windows-Archiv
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $package = "notfallmappe-$env:GITHUB_REF_NAME-windows-x86_64"
+          Compress-Archive -Path "package/$package" -DestinationPath "dist/$package.zip"
+      - name: Archiv bereitstellen
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-${{ matrix.platform }}
+          path: dist/*
+          if-no-files-found: error
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: release-*
+          path: dist
+          merge-multiple: true
+      - name: Prüfsummen
+        working-directory: dist
+        run: sha256sum *.tar.gz *.zip > SHA256SUMS.txt
+      - name: Alpha veröffentlichen
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" dist/* \
+            --verify-tag --prerelease \
+            --title "Notfallmappe ${GITHUB_REF_NAME}" \
+            --notes-file .github/release-notes-alpha.md
